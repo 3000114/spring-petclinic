@@ -14,7 +14,7 @@ jobs:
   # Secrets – Gitleaks
   # =========================
   gitleaks:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
   # SAST – Semgrep
   # =========================
   semgrep:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -71,7 +71,7 @@ jobs:
   # SCA – Trivy FS
   # =========================
   trivy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -99,7 +99,7 @@ jobs:
   # Code Quality / SAST++ – SonarQube
   # =========================
   sonarqube:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -126,7 +126,7 @@ jobs:
   # DAST – OWASP ZAP
   # =========================
   zap:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -175,7 +175,7 @@ jobs:
   # IAST-light – OpenTelemetry (optional)
   # =========================
   iast:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -214,3 +214,4 @@ jobs:
         with:
           name: iast-runtime-logs
           path: otel.log
+
