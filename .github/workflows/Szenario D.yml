@@ -1,4 +1,4 @@
-name: PetClinic – Scenario D (Risk-Based Triggers)
+name: scenario-d-risk-based-spring-petclinic
 
 on:
   push:
@@ -155,4 +155,5 @@ jobs:
       - name: Stop PetClinic
         run: |
           kill $(cat petclinic.pid) || true
+
 
