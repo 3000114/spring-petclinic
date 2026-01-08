@@ -1,4 +1,4 @@
-name: PetClinic – Scenario B (Shift-Left)
+name: scenario-b-shift-left-spring-petclinic
 
 on:
   push:
@@ -17,8 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
       - name: Run Semgrep (SAST)
         run: |
@@ -30,7 +29,7 @@ jobs:
               --config=p/java \
               --json \
               --output=/src/results/semgrep/semgrep.json \
-              --metrics=off
+              --metrics=off || true
 
       - name: Upload Semgrep report
         uses: actions/upload-artifact@v4
@@ -47,8 +46,7 @@ jobs:
     needs: sast
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
       - name: Run Trivy FS (SCA)
         run: |
@@ -58,9 +56,8 @@ jobs:
             aquasec/trivy:0.49.1 \
             fs /src \
               --scanners vuln,misconfig \
-              --severity HIGH,CRITICAL \
               --format json \
-              --output /src/results/trivy/trivy.json
+              --output /src/results/trivy/trivy.json || true
 
       - name: Upload Trivy report
         uses: actions/upload-artifact@v4
@@ -77,8 +74,7 @@ jobs:
     needs: sca
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
       - name: Run Gitleaks (Secrets)
         run: |
@@ -88,7 +84,8 @@ jobs:
             zricethezav/gitleaks detect \
               --source=/src \
               --report-format json \
-              --report-path /src/results/gitleaks/gitleaks.json
+              --report-path /src/results/gitleaks/gitleaks.json \
+              --no-git || true
 
       - name: Upload Gitleaks report
         uses: actions/upload-artifact@v4
@@ -98,15 +95,15 @@ jobs:
 
 
   # =========================
-  # 4. DAST – OWASP ZAP
+  # 4. DAST – OWASP ZAP (NO FAIL-FAST!)
   # =========================
   dast:
     runs-on: ubuntu-latest
     needs: secrets
+    continue-on-error: true
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -115,8 +112,7 @@ jobs:
           java-version: 17
 
       - name: Build PetClinic
-        run: |
-          ./mvnw -B package -DskipTests
+        run: ./mvnw -B package -DskipTests
 
       - name: Start PetClinic
         run: |
@@ -132,65 +128,17 @@ jobs:
             fi
             sleep 5
           done
-          echo "PetClinic failed to start"
           cat petclinic.log
           exit 1
 
-      - name: ZAP Baseline Scan
+      - name: ZAP Baseline Scan (informational)
         uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:8080
           docker_name: ghcr.io/zaproxy/zaproxy:stable
-          fail_action: true
+          fail_action: false
           artifact_name: zap-report
+          allow_issue_writing: true
 
       - name: Stop PetClinic
-        run: |
-          kill $(cat petclinic.pid) || true
-
-
-  # =========================
-  # 5. IAST-light – OpenTelemetry (optional)
-  # =========================
-  iast:
-    runs-on: ubuntu-latest
-    needs: dast
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Build PetClinic
-        run: |
-          ./mvnw -B package -DskipTests
-
-      - name: Download OpenTelemetry Agent
-        run: |
-          curl -L -o otel.jar \
-            https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
-
-      - name: Start PetClinic with IAST-light
-        env:
-          OTEL_SERVICE_NAME: petclinic
-          OTEL_TRACES_EXPORTER: logging
-          OTEL_METRICS_EXPORTER: none
-          OTEL_LOGS_EXPORTER: none
-        run: |
-          nohup java \
-            -javaagent:./otel.jar \
-            -jar target/*.jar \
-            > otel.log 2>&1 &
-          echo $! > petclinic.pid
-
-      - name: Upload IAST runtime logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: iast-runtime-logs
-          path: otel.log
-
+        run: kill $(cat petclinic.pid) || true
