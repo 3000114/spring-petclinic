@@ -1,7 +1,9 @@
-name: PetClinic – Scenario C (Fail-Fast)
+name: scenario-c-fail-fast-spring-petclinic
 
 on:
+  workflow_dispatch:
   push:
+    branches: [ main ]
   pull_request:
 
 permissions:
@@ -220,3 +222,4 @@ jobs:
         with:
           name: iast-runtime-logs
           path: iast.log
+
