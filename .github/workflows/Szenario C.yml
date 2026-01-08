@@ -16,7 +16,7 @@ jobs:
   # 1. SAST – Semgrep
   # =========================
   sast:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -46,7 +46,7 @@ jobs:
   # 2. Fail-Fast Gate (SAST)
   # =========================
   check_sast_critical:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sast
 
     steps:
@@ -64,7 +64,7 @@ jobs:
   # 3. SCA – Trivy FS
   # =========================
   sca:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: check_sast_critical
 
     steps:
@@ -87,7 +87,7 @@ jobs:
   # 4. Fail-Fast Gate (SCA)
   # =========================
   check_sca_critical:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: sca
 
     steps:
@@ -104,7 +104,7 @@ jobs:
   # 5. Secrets – Gitleaks
   # =========================
   secrets:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: check_sca_critical
 
     steps:
@@ -126,7 +126,7 @@ jobs:
   # 6. Fail-Fast Gate (Secrets)
   # =========================
   check_secrets:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: secrets
 
     steps:
@@ -143,7 +143,7 @@ jobs:
   # 7. DAST – ZAP (nur wenn alles sauber)
   # =========================
   dast:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: check_secrets
 
     steps:
@@ -188,7 +188,7 @@ jobs:
   # 8. IAST-light – nur wenn DAST sauber
   # =========================
   iast:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: dast
 
     steps:
@@ -222,4 +222,5 @@ jobs:
         with:
           name: iast-runtime-logs
           path: iast.log
+
 
