@@ -1,4 +1,4 @@
-name: PetClinic – Scenario A (All Parallel)
+name: scenario-a-parallel-spring-petclinic
 
 on:
   push:
@@ -214,4 +214,5 @@ jobs:
         with:
           name: iast-runtime-logs
           path: otel.log
+
 
