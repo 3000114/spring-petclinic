@@ -7,7 +7,7 @@ on:
       - "src/**"
       - "pom.xml"
   schedule:
-    - cron: "0 2 * * *"   # nightly SCA scan
+    - cron: "0 2 * * *"
   workflow_dispatch:
 
 permissions:
@@ -16,144 +16,76 @@ permissions:
 
 jobs:
 
-  # =========================
-  # SAST – Semgrep
-  # Runs on every push / PR
-  # =========================
   sast:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Run Semgrep (SAST)
-        run: |
-          mkdir -p results/semgrep
-          docker run --rm \
-            -v "$PWD:/src" \
-            returntocorp/semgrep:1.75.0 \
-            semgrep scan \
-              --config=p/java \
-              --json \
-              --output=/src/results/semgrep/semgrep.json \
-              --metrics=off
-
-      - name: Upload Semgrep report
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v5
+      - run: mkdir -p results/semgrep
+      - run: |
+          docker run --rm -v "$PWD:/src" returntocorp/semgrep:1.75.0 semgrep scan \
+            --config=p/java --json --metrics=off \
+            --output=/src/results/semgrep/semgrep.json
+      - uses: actions/upload-artifact@v4
         with:
           name: semgrep-report
           path: results/semgrep/semgrep.json
 
-
-  # =========================
-  # Secrets – Gitleaks
-  # Runs on every push / PR
-  # =========================
   secrets:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Run Gitleaks
-        run: |
-          mkdir -p results/gitleaks
-          docker run --rm \
-            -v "$PWD:/src" \
-            zricethezav/gitleaks detect \
-              --source=/src \
-              --report-format json \
-              --report-path /src/results/gitleaks/gitleaks.json
-
-      - name: Upload Gitleaks report
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v5
+      - run: mkdir -p results/gitleaks
+      - run: |
+          docker run --rm -v "$PWD:/src" zricethezav/gitleaks detect \
+            --source=/src --no-git \
+            --report-format json \
+            --report-path /src/results/gitleaks/gitleaks.json
+      - uses: actions/upload-artifact@v4
         with:
           name: gitleaks-report
           path: results/gitleaks/gitleaks.json
 
-
-  # =========================
-  # SCA – Trivy FS
-  # Runs ONLY nightly (cron)
-  # =========================
   sca:
-    runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Run Trivy FS (SCA)
-        run: |
-          mkdir -p results/trivy
-          docker run --rm \
-            -v "$PWD:/src" \
-            aquasec/trivy:0.49.1 \
-            fs /src \
-              --severity HIGH,CRITICAL \
-              --format json \
-              --output /src/results/trivy/trivy.json
-
-      - name: Upload Trivy report
-        uses: actions/upload-artifact@v4
+      - uses: actions/checkout@v5
+      - run: mkdir -p results/trivy
+      - run: |
+          docker run --rm -v "$PWD:/src" aquasec/trivy:0.49.1 fs /src \
+            --scanners vuln,misconfig,license \
+            --severity LOW,MEDIUM,HIGH,CRITICAL \
+            --format json \
+            --output /src/results/trivy/trivy.json
+      - uses: actions/upload-artifact@v4
         with:
           name: trivy-sca-report
           path: results/trivy/trivy.json
 
-
-  # =========================
-  # DAST – ZAP
-  # Runs ONLY on main / release
-  # =========================
   zap:
-    runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
-      - name: Build PetClinic
-        run: |
-          ./mvnw -B package -DskipTests
-
-      - name: Start PetClinic
-        run: |
+      - run: ./mvnw -B package -DskipTests
+      - run: |
           nohup java -jar target/*.jar > petclinic.log 2>&1 &
           echo $! > petclinic.pid
-
-      - name: Wait for PetClinic
-        run: |
+      - run: |
           for i in {1..30}; do
-            if curl -sSf http://localhost:8080 > /dev/null; then
-              echo "PetClinic is UP"
-              exit 0
-            fi
+            curl -sSf http://localhost:8080 && exit 0
             sleep 5
           done
-          echo "PetClinic failed to start"
           cat petclinic.log
           exit 1
-
-      - name: ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.15.0
+      - uses: zaproxy/action-baseline@v0.15.0
         with:
           target: http://localhost:8080
+          cmd_options: "-a"
           fail_action: false
           artifact_name: zap_petclinic_scan
-          allow_issue_writing: true
-
-      - name: Stop PetClinic
-        run: |
-          kill $(cat petclinic.pid) || true
-
-
+      - run: kill $(cat petclinic.pid) || true
